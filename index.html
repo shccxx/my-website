@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5faff">
+  <title>词钩 · 单词速记图生成器</title>
+  <style>
+    :root {
+      --ink: #142d63;
+      --muted: #71809b;
+      --blue: #4d8df2;
+      --blue-dark: #2868d9;
+      --orange: #f47b3d;
+      --line: #e6edf7;
+      --paper: #fffdf7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: radial-gradient(ellipse at 82% 0%, #e3f3ff 0, transparent 36%), #f6f9fd;
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+    }
+    button, input { font: inherit; }
+    .page { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 24px 0 48px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 42px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: .02em; }
+    .brand-mark { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: #e6f1ff; color: var(--blue-dark); font-size: 21px; }
+    .top-note { color: var(--muted); font-size: 13px; }
+    .intro { margin-bottom: 30px; }
+    .eyebrow { color: var(--blue-dark); font-size: 13px; font-weight: 800; letter-spacing: .12em; margin-bottom: 12px; }
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.2; letter-spacing: -.04em; }
+    h1 span { color: var(--blue-dark); }
+    .lead { color: var(--muted); margin: 12px 0 0; font-size: 16px; }
+    .steps { display: flex; align-items: center; gap: 12px; margin-top: 23px; color: #657693; font-size: 13px; }
+    .step { display: flex; align-items: center; gap: 8px; }
+    .step b { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: #e7f0ff; color: var(--blue-dark); font-size: 12px; }
+    .step-line { width: 26px; height: 1px; background: #cbd8eb; }
+    .workspace { display: grid; grid-template-columns: minmax(330px, .86fr) minmax(420px, 1.14fr); gap: 22px; align-items: stretch; }
+    .panel { background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 12px 35px rgba(29, 71, 127, .055); }
+    .form-panel { padding: 25px; }
+    .panel-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .panel-title h2 { font-size: 17px; margin: 0; }
+    .optional { color: #98a4b8; font-size: 12px; }
+    .field-label { display: block; margin: 0 0 9px; color: #344a70; font-size: 13px; font-weight: 700; }
+    .upload-box { position: relative; min-height: 148px; border: 1.5px dashed #b8cce9; border-radius: 16px; background: #f7fbff; display: grid; place-items: center; text-align: center; padding: 18px; cursor: pointer; transition: .2s; overflow: hidden; }
+    .upload-box:hover, .upload-box.dragging { border-color: var(--blue); background: #eff7ff; }
+    .upload-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+    .upload-icon { margin: 0 auto 8px; width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; color: var(--blue-dark); background: #e5f1ff; font-size: 20px; }
+    .upload-main { color: #334d79; font-size: 14px; font-weight: 700; }
+    .upload-sub { color: #91a0b7; font-size: 12px; margin-top: 6px; }
+    .file-preview { display: none; align-items: center; gap: 12px; text-align: left; width: 100%; }
+    .file-preview img { width: 76px; height: 76px; border-radius: 12px; object-fit: cover; background: #eaf0f7; }
+    .file-info { min-width: 0; flex: 1; }
+    .file-name { display: block; color: #30466c; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { display: block; margin-top: 6px; color: #91a0b7; font-size: 12px; }
+    .remove-file { border: 0; background: #fff; color: #7585a0; border-radius: 9px; padding: 7px 9px; cursor: pointer; font-size: 12px; }
+    .field { margin-top: 22px; }
+    .translation-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .translation-top .field-label { margin: 0; }
+    .mode-switch { display: inline-flex; gap: 3px; padding: 3px; background: #f0f4fa; border-radius: 10px; }
+    .mode-button { border: 0; border-radius: 7px; padding: 7px 10px; color: #71809b; background: transparent; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .mode-button.active { color: #2868d9; background: white; box-shadow: 0 1px 4px rgba(27, 54, 91, .12); }
+    .word-input-wrap { display: flex; align-items: center; gap: 10px; border: 1px solid #dce5f1; border-radius: 12px; padding: 0 13px; transition: .2s; }
+    .word-input-wrap:focus-within { border-color: #75a5ee; box-shadow: 0 0 0 3px #eaf3ff; }
+    .word-input-wrap span { color: #93a2ba; }
+    .word-input { width: 100%; border: 0; outline: 0; background: transparent; height: 47px; color: var(--ink); font-size: 16px; font-weight: 650; }
+    .helper { margin: 7px 0 0; color: #94a1b6; font-size: 12px; }
+    .translation-result { margin-top: 10px; padding: 9px 11px; border-radius: 10px; color: #41638f; background: #f0f7ff; font-size: 12px; display: none; }
+    .example-words { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+    .example-word { border: 1px solid #e2eaf5; border-radius: 20px; padding: 5px 8px; color: #71809b; background: white; font-size: 11px; cursor: pointer; }
+    .example-word:hover { border-color: #9cbced; color: #2868d9; }
+    .style-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .style-option { position: relative; }
+    .style-option input { position: absolute; opacity: 0; pointer-events: none; }
+    .style-option label { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 43px; padding: 8px 5px; border: 1px solid #e0e8f3; border-radius: 11px; color: #687b99; cursor: pointer; font-size: 12px; transition: .2s; white-space: nowrap; }
+    .style-option input:checked + label { border-color: #8db6f2; color: #2868d9; background: #f0f6ff; box-shadow: inset 0 0 0 1px #8db6f2; }
+    .generate { display: flex; justify-content: center; align-items: center; gap: 9px; width: 100%; margin-top: 25px; height: 52px; border: 0; border-radius: 14px; color: white; background: linear-gradient(100deg, #4b91f5, #286bdc); box-shadow: 0 9px 18px rgba(55, 120, 222, .22); font-weight: 800; cursor: pointer; transition: transform .18s, box-shadow .18s; }
+    .generate:hover { transform: translateY(-1px); box-shadow: 0 12px 22px rgba(55, 120, 222, .29); }
+    .generate:active { transform: translateY(0); }
+    .secure-note { color: #9aa6b9; text-align: center; font-size: 11px; margin: 11px 0 0; }
+    .result-panel { padding: 25px; background: linear-gradient(145deg, #fff 5%, #fbfdff 76%, #f3f9ff); min-height: 560px; }
+    .result-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 19px; }
+    .result-heading h2 { font-size: 17px; margin: 0; }
+    .demo-badge { font-size: 11px; font-weight: 700; color: #ad6b2a; background: #fff4df; padding: 6px 9px; border-radius: 20px; }
+    .result-stage { display: grid; place-items: center; min-height: 438px; border-radius: 17px; padding: 22px; background: radial-gradient(circle at 80% 14%, #fff7e7 0, transparent 25%), #f2f7fd; border: 1px solid #edf2f8; }
+    .memory-card { position: relative; width: min(100%, 355px); min-height: 400px; border-radius: 19px; overflow: hidden; padding: 21px 22px 19px; background: var(--paper); box-shadow: 0 13px 32px rgba(21, 51, 101, .14); display: flex; flex-direction: column; }
+    .memory-card:before { content: ""; position: absolute; width: 220px; height: 220px; border-radius: 50%; top: -100px; right: -80px; background: #e5f2ff; }
+    .memory-top { z-index: 1; display: flex; justify-content: space-between; align-items: center; color: #7888a0; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
+    .memory-top span:last-child { background: white; border: 1px solid #edf0f4; border-radius: 20px; padding: 5px 9px; letter-spacing: 0; color: #8c9ab0; }
+    .illustration { position: relative; z-index: 1; display: grid; place-items: center; height: 145px; margin: 13px 0 2px; border-radius: 16px; background: linear-gradient(135deg, #ebf6ff, #fff6e8); overflow: hidden; }
+    .illustration:before, .illustration:after { content: ""; position: absolute; border-radius: 50%; background: rgba(255,255,255,.64); }
+    .illustration:before { width: 74px; height: 74px; top: -19px; left: 24px; }
+    .illustration:after { width: 45px; height: 45px; bottom: 12px; right: 32px; }
+    .emoji { z-index: 1; font-size: 82px; line-height: 1; filter: drop-shadow(0 8px 5px rgba(59, 86, 122, .13)); transition: transform .3s; }
+    .memory-card:hover .emoji { transform: translateY(-3px) rotate(-3deg); }
+    .scene-bubble { position: absolute; z-index: 2; top: 11px; right: 12px; max-width: 132px; border-radius: 14px 14px 4px 14px; padding: 7px 10px; color: #415678; background: white; box-shadow: 0 4px 12px rgba(50, 75, 116, .12); font-size: 11px; font-weight: 750; }
+    .buddy-emoji { position: absolute; z-index: 2; left: 34px; bottom: 12px; font-size: 33px; filter: drop-shadow(0 4px 4px rgba(59, 86, 122, .12)); }
+    .scene-caption { position: absolute; z-index: 2; right: 12px; bottom: 9px; color: #7789a4; font-size: 9px; }
+    .word-line { position: relative; z-index: 1; display: flex; align-items: baseline; gap: 9px; margin-top: 14px; }
+    .output-word { font-size: 31px; font-weight: 850; letter-spacing: -.03em; color: #18366e; }
+    .phonetic { color: #8a97aa; font-size: 13px; }
+    .meaning { position: relative; z-index: 1; color: #50617e; margin-top: 2px; font-size: 14px; }
+    .hook-box { position: relative; z-index: 1; margin-top: 14px; padding: 12px 13px; border-radius: 12px; background: #fff5e7; color: #74512e; font-size: 12px; line-height: 1.65; }
+    .hook-box b { color: #dc7838; }
+    .reference-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 13px; color: #93a0b3; font-size: 10px; }
+    .ref-thumb { width: 25px; height: 25px; border-radius: 7px; object-fit: cover; background: #edf2f7; display: none; }
+    .ref-empty { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 7px; background: #edf3fa; font-size: 12px; }
+    .result-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 17px; gap: 12px; }
+    .status { color: #8693a8; font-size: 12px; }
+    .save-button { border: 1px solid #dce7f5; background: white; color: #376fbf; border-radius: 10px; padding: 9px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .save-button:hover { background: #f4f8ff; }
+    .footnote { margin: 17px 2px 0; color: #97a3b6; font-size: 11px; line-height: 1.6; }
+    .plan-link { display: inline-block; margin-top: 26px; color: #6680a8; text-decoration: none; font-size: 12px; }
+    .plan-link:hover { color: #2868d9; }
+    @media (max-width: 820px) { .page { width: min(620px, calc(100% - 28px)); padding-top: 18px; } header { margin-bottom: 32px; } .workspace { grid-template-columns: 1fr; } .result-panel { min-height: auto; } .result-stage { min-height: 420px; } }
+    @media (max-width: 430px) { .top-note { display: none; } .form-panel, .result-panel { padding: 19px; } .steps { gap: 7px; font-size: 11px; } .step-line { width: 13px; } .style-option label { font-size: 11px; } .result-stage { padding: 13px; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="brand"><span class="brand-mark">钩</span><span>词钩 · 单词速记</span></div>
+      <div class="top-note">把单词变成一眼记住的画面</div>
+    </header>
+
+    <section class="intro">
+      <div class="eyebrow">WORD MEMORY MAKER</div>
+      <h1>单词有了画面，<span>记忆就有了钩子。</span></h1>
+      <p class="lead">上传一张喜欢的参考图，输入单词，看看专属记忆卡是什么样。</p>
+      <div class="steps" aria-label="使用步骤">
+        <div class="step"><b>1</b>上传参考图</div><i class="step-line"></i>
+        <div class="step"><b>2</b>输入单词</div><i class="step-line"></i>
+        <div class="step"><b>3</b>生成预览</div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="panel form-panel">
+        <div class="panel-title"><h2>做一张我的单词记忆卡</h2><span class="optional">约 10 秒</span></div>
+        <label class="field-label" for="image-input">参考图片 <span class="optional">（选填）</span></label>
+        <div class="upload-box" id="upload-box">
+          <input id="image-input" type="file" accept="image/*" aria-label="选择参考图片">
+          <div class="upload-prompt" id="upload-prompt">
+            <div class="upload-icon">＋</div>
+            <div class="upload-main">点击选择图片，或拖到这里</div>
+            <div class="upload-sub">JPG、PNG 均可，建议小于 10MB</div>
+          </div>
+          <div class="file-preview" id="file-preview">
+            <img id="file-thumb" alt="已上传的参考图片">
+            <div class="file-info"><span class="file-name" id="file-name"></span><span class="file-size" id="file-size"></span></div>
+            <button class="remove-file" type="button" id="remove-file">移除</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="translation-top">
+            <span class="field-label">翻译方向</span>
+            <div class="mode-switch" role="group" aria-label="翻译方向">
+              <button class="mode-button active" type="button" data-mode="enToZh">英 → 汉</button>
+              <button class="mode-button" type="button" data-mode="zhToEn">汉 → 英</button>
+            </div>
+          </div>
+          <label class="field-label" id="word-label" for="word-input">输入英语单词</label>
+          <div class="word-input-wrap"><span>↔</span><input class="word-input" id="word-input" value="apple" maxlength="35" placeholder="例如 apple"></div>
+          <p class="helper" id="direction-prompt">生成时会显示中文释义和记忆联想。</p>
+          <div class="example-words" aria-label="试试这些单词">
+            <button class="example-word" type="button" data-en="apple" data-zh="苹果">apple 苹果</button>
+            <button class="example-word" type="button" data-en="bridge" data-zh="桥">bridge 桥</button>
+            <button class="example-word" type="button" data-en="happy" data-zh="开心">happy 开心</button>
+          </div>
+          <div class="translation-result" id="translation-result" aria-live="polite"></div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">选择画面风格</span>
+          <div class="style-options">
+            <div class="style-option"><input type="radio" name="style" id="style-cute" value="Q萌漫画" checked><label for="style-cute">🧸 Q萌漫画</label></div>
+            <div class="style-option"><input type="radio" name="style" id="style-school" value="校园手绘"><label for="style-school">✏️ 校园手绘</label></div>
+            <div class="style-option"><input type="radio" name="style" id="style-clean" value="清爽卡片"><label for="style-clean">🌤 清爽卡片</label></div>
+          </div>
+        </div>
+        <button class="generate" id="generate-button" type="button"><span>✦</span> 翻译并生成联想记忆图</button>
+        <p class="secure-note">演示版仅在当前浏览器预览，不会上传或保存图片</p>
+      </div>
+
+      <div class="panel result-panel">
+        <div class="result-heading"><h2>记忆图效果预览</h2><span class="demo-badge">本地演示词库 · 可保存</span></div>
+        <div class="result-stage">
+          <article class="memory-card" id="memory-card">
+            <div class="memory-top"><span>MY WORD HOOK</span><span id="style-badge">Q萌漫画</span></div>
+            <div class="illustration"><span class="scene-bubble" id="scene-bubble">啊！苹果</span><span class="buddy-emoji" id="buddy-emoji">🐜</span><span class="emoji" id="output-emoji">🍎</span><span class="scene-caption" id="scene-caption">记忆小剧场</span></div>
+            <div class="word-line"><span class="output-word" id="output-word">apple</span><span class="phonetic" id="output-phonetic">/ˈæp.əl/</span></div>
+            <div class="meaning" id="output-meaning">苹果</div>
+            <div class="hook-box" id="output-hook"><b>记忆钩子：</b>一只小蚂蚁站在苹果上，张嘴喊：“啊，apple！”</div>
+            <div class="reference-row"><img class="ref-thumb" id="output-ref" alt="参考图缩略图"><span class="ref-empty" id="ref-empty">✧</span><span id="reference-caption">添加参考图，让画面更像你喜欢的风格</span></div>
+          </article>
+        </div>
+        <div class="result-actions"><span class="status" id="status">示例卡片已准备好，试着改一个单词吧。</span><button class="save-button" id="save-button" type="button">↓ 保存预览图</button></div>
+        <p class="footnote">当前版本已能做双向示例翻译、生成联想卡片并保存图片；词库和画面是本地演示内容，还没有连接在线词典或 AI 绘图服务。</p>
+      </div>
+    </section>
+    <a class="plan-link" href="产品计划.md">查看给新手的第一步计划 →</a>
+  </main>
+
+  <script>
+    const examples = {
+      apple: { phonetic: '/ˈæp.əl/', meaning: '苹果', emoji: '🍎', hook: '一只小蚂蚁站在苹果上，张嘴喊：“啊，apple！”' },
+      book: { phonetic: '/bʊk/', meaning: '书；书籍', emoji: '📚', hook: '打开一本会讲故事的书，book 就是这本“书”。' },
+      bright: { phonetic: '/braɪt/', meaning: '明亮的；聪明的', emoji: '💡', hook: '灯泡“啪”地亮起来，bright 就是明亮的。' },
+      bridge: { phonetic: '/brɪdʒ/', meaning: '桥', emoji: '🌉', hook: '一座小桥把两边连起来，bridge 就是桥。' },
+      cat: { phonetic: '/kæt/', meaning: '猫', emoji: '🐱', hook: '一只猫戴着字母 C 的项圈，喵一声就记住 cat。' },
+      happy: { phonetic: '/ˈhæp.i/', meaning: '快乐的；高兴的', emoji: '😊', hook: '一个笑脸蹦起来说：“我好 happy！”' },
+      school: { phonetic: '/skuːl/', meaning: '学校', emoji: '🏫', hook: '每天背书包走进 school，就是走进学校。' },
+      sun: { phonetic: '/sʌn/', meaning: '太阳', emoji: '☀️', hook: '太阳公公晒得暖暖的，sun 就是太阳。' }
+    };
+    const imageInput = document.getElementById('image-input');
+    const uploadBox = document.getElementById('upload-box');
+    const wordInput = document.getElementById('word-input');
+    let translationMode = 'enToZh';
+    const scenes = {
+      apple: ['🐜', '啊！苹果', '小蚂蚁举着比自己大十倍的苹果当雨伞。苹果就是 apple，想象它摇摇晃晃却不肯放手！'],
+      book: ['🦉', '书长翅膀啦！', '一本书长出翅膀，载着小猫头鹰飞去上课。看见这本会飞的书，就想到 book。'],
+      bright: ['🐻', '亮得像小太阳！', '小熊头顶的灯泡突然亮成小太阳，把整间屋子照亮。bright 表示明亮的。'],
+      bridge: ['🐸', '跳不过？走桥！', '青蛙穿着溜冰鞋，沿着彩虹桥滑过河。bridge 是桥，画面中的桥连接两岸。'],
+      cat: ['🐟', '猫咪钓到大鱼！', '小猫戴着字母 C 的帽子，钓起一条比自己还大的鱼。把猫和 cat 一起记住。'],
+      happy: ['🐰', '开心到飞起来！', '小兔得到胡萝卜奖杯，开心得蹦上云朵。happy 就是快乐的、高兴的。'],
+      school: ['🎒', '书包自己上学！', '一只长着小腿的书包，蹦蹦跳跳跑进学校。school 就是学校。'],
+      sun: ['🐧', '太阳戴墨镜！', '太阳戴着墨镜，给怕冷的小企鹅送来暖暖的阳光。sun 就是太阳。']
+    };
+    const chineseWords = { 苹果: 'apple', 书: 'book', 书籍: 'book', 明亮: 'bright', 明亮的: 'bright', 聪明的: 'bright', 桥: 'bridge', 猫: 'cat', 开心: 'happy', 快乐: 'happy', 高兴: 'happy', 快乐的: 'happy', 高兴的: 'happy', 学校: 'school', 太阳: 'sun' };
+    document.querySelectorAll('.mode-button').forEach(button => button.addEventListener('click', () => {
+      translationMode = button.dataset.mode;
+      document.querySelectorAll('.mode-button').forEach(item => { item.classList.toggle('active', item === button); item.setAttribute('aria-pressed', String(item === button)); });
+      const chinese = translationMode === 'zhToEn';
+      const current = wordInput.value.trim();
+      if (chinese && examples[current.toLowerCase()]) wordInput.value = examples[current.toLowerCase()].meaning.split('；')[0];
+      if (!chinese && chineseWords[current]) wordInput.value = chineseWords[current];
+      document.getElementById('word-label').textContent = chinese ? '输入中文词语' : '输入英语单词';
+      wordInput.placeholder = chinese ? '例如 苹果' : '例如 apple';
+      document.getElementById('direction-prompt').textContent = chinese ? '生成时会显示对应英文和记忆联想。' : '生成时会显示中文释义和记忆联想。';
+      document.getElementById('translation-result').style.display = 'none';
+    }));
+    document.querySelectorAll('.example-word').forEach(button => button.addEventListener('click', () => { wordInput.value = translationMode === 'zhToEn' ? button.dataset.zh : button.dataset.en; document.getElementById('generate-button').click(); }));
+    wordInput.addEventListener('keydown', event => { if (event.key === 'Enter') document.getElementById('generate-button').click(); });
+    let referenceData = '';
+
+    function formatSize(bytes) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
+    function setImage(file) {
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { alert('请选择图片文件。'); return; }
+      if (file.size > 10 * 1024 * 1024) { alert('图片大小请控制在 10MB 以内。'); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        referenceData = reader.result;
+        document.getElementById('file-thumb').src = referenceData;
+        document.getElementById('file-name').textContent = file.name;
+        document.getElementById('file-size').textContent = `${formatSize(file.size)} · 已在本机读取`;
+        document.getElementById('upload-prompt').style.display = 'none';
+        document.getElementById('file-preview').style.display = 'flex';
+        document.getElementById('output-ref').src = referenceData;
+        document.getElementById('output-ref').style.display = 'block';
+        document.getElementById('ref-empty').style.display = 'none';
+        document.getElementById('reference-caption').textContent = '已选作风格参考（本地预览）';
+        document.getElementById('status').textContent = '参考图片已载入，可以生成预览了。';
+      };
+      reader.readAsDataURL(file);
+    }
+    imageInput.addEventListener('change', event => setImage(event.target.files[0]));
+    document.getElementById('remove-file').addEventListener('click', event => {
+      event.preventDefault(); event.stopPropagation();
+      referenceData = ''; imageInput.value = '';
+      document.getElementById('upload-prompt').style.display = 'block';
+      document.getElementById('file-preview').style.display = 'none';
+      document.getElementById('output-ref').style.display = 'none';
+      document.getElementById('ref-empty').style.display = 'grid';
+      document.getElementById('reference-caption').textContent = '添加参考图，让画面更像你喜欢的风格';
+      document.getElementById('status').textContent = '参考图片已移除。';
+    });
+    ['dragenter', 'dragover'].forEach(type => uploadBox.addEventListener(type, event => { event.preventDefault(); uploadBox.classList.add('dragging'); }));
+    ['dragleave', 'drop'].forEach(type => uploadBox.addEventListener(type, event => { event.preventDefault(); uploadBox.classList.remove('dragging'); }));
+    uploadBox.addEventListener('drop', event => setImage(event.dataTransfer.files[0]));
+
+    document.getElementById('generate-button').addEventListener('click', () => {
+      const input = wordInput.value.trim();
+      const word = translationMode === 'zhToEn' ? chineseWords[input] : input.toLowerCase();
+      if (input && (!word || !examples[word])) {
+        document.getElementById('translation-result').style.display = 'block';
+        document.getElementById('translation-result').textContent = '演示词库暂未收录这个词。请试试 apple / 苹果、book / 书、bright / 明亮、bridge / 桥、cat / 猫、happy / 开心、school / 学校、sun / 太阳。';
+        document.getElementById('status').textContent = '未生成新结果，仍显示上一张记忆卡。';
+        return;
+      }
+      if (!word) { wordInput.focus(); document.getElementById('status').textContent = '先输入一个单词，再生成预览。'; return; }
+      const data = examples[word.toLowerCase()] || { phonetic: '/  /', meaning: '你的单词释义', emoji: '✨', hook: `试着把 “${word}” 和一个夸张、有趣的画面联系起来。这张卡片展示了正式产品的内容位置。` };
+      document.getElementById('output-word').textContent = word;
+      document.getElementById('output-phonetic').textContent = data.phonetic;
+      document.getElementById('output-meaning').textContent = data.meaning;
+      document.getElementById('output-emoji').textContent = data.emoji;
+      const scene = scenes[word];
+      document.getElementById('output-hook').textContent = `记忆钩子：${scene[2]}`;
+      document.getElementById('buddy-emoji').textContent = scene[0];
+      document.getElementById('scene-bubble').textContent = scene[1];
+      document.getElementById('translation-result').style.display = 'block';
+      document.getElementById('translation-result').textContent = translationMode === 'zhToEn' ? `${input} → ${word}` : `${word} → ${data.meaning}`;
+      const style = document.querySelector('input[name="style"]:checked').value;
+      const palettes = { 'Q萌漫画': ['#fff0df', '#ffe2ed'], '校园手绘': ['#e9f6df', '#fff8d9'], '清爽卡片': ['#e0f3ff', '#f2efff'] };
+      const palette = palettes[style];
+      document.querySelector('.illustration').style.background = `linear-gradient(135deg, ${palette[0]}, ${palette[1]})`;
+      document.getElementById('output-emoji').style.transform = style === '校园手绘' ? 'rotate(-12deg)' : style === '清爽卡片' ? 'scale(.85)' : 'rotate(8deg)';
+      document.getElementById('style-badge').textContent = style;
+      document.getElementById('status').textContent = `“${word}”的记忆卡预览已更新。`;
+    });
+
+    document.getElementById('save-button').addEventListener('click', () => {
+      const canvas = document.createElement('canvas'); canvas.width = 720; canvas.height = 920;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 720, 920); gradient.addColorStop(0, '#e8f4ff'); gradient.addColorStop(1, '#fff5e5');
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 720, 920);
+      ctx.fillStyle = '#fffdf7'; roundRect(ctx, 58, 54, 604, 812, 38); ctx.fill();
+      ctx.fillStyle = '#7486a2'; ctx.font = 'bold 22px sans-serif'; ctx.fillText('MY WORD HOOK', 95, 105);
+      ctx.fillStyle = '#edf6ff'; roundRect(ctx, 95, 140, 530, 285, 28); ctx.fill();
+      ctx.textAlign = 'center'; ctx.font = '120px sans-serif'; ctx.fillText(document.getElementById('output-emoji').textContent, 360, 330);
+      ctx.font = '62px sans-serif'; ctx.fillText(document.getElementById('buddy-emoji').textContent, 190, 380);
+      ctx.font = 'bold 24px sans-serif'; ctx.fillStyle = '#415678'; ctx.fillText(document.getElementById('scene-bubble').textContent, 420, 190);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#18366e'; ctx.font = 'bold 64px sans-serif'; ctx.fillText(document.getElementById('output-word').textContent, 95, 515);
+      ctx.fillStyle = '#7d8ca5'; ctx.font = '28px sans-serif'; ctx.fillText(document.getElementById('output-phonetic').textContent, 95, 559);
+      ctx.fillStyle = '#53627b'; ctx.font = '30px sans-serif'; ctx.fillText(document.getElementById('output-meaning').textContent, 95, 610);
+      ctx.fillStyle = '#fff3df'; roundRect(ctx, 95, 650, 530, 135, 22); ctx.fill();
+      ctx.fillStyle = '#74512e'; ctx.font = '20px sans-serif'; wrapText(ctx, document.getElementById('output-hook').innerText, 119, 680, 480, 29);
+      const link = document.createElement('a'); link.download = `${document.getElementById('output-word').textContent}-记忆卡.png`; link.href = canvas.toDataURL('image/png'); link.click();
+      document.getElementById('status').textContent = '预览卡片已保存到你的设备。';
+    });
+    function roundRect(ctx, x, y, width, height, radius) { ctx.beginPath(); ctx.roundRect(x, y, width, height, radius); }
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      let line = '', lines = [];
+      for (const char of text) { const test = line + char; if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = char; } else line = test; }
+      lines.push(line); lines.slice(0, 3).forEach((item, index) => ctx.fillText(item, x, y + index * lineHeight));
+    }
+  </script>
+</body>
+</html>
